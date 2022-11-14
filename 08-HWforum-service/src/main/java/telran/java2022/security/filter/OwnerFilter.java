@@ -1,6 +1,7 @@
 package telran.java2022.security.filter;
 
 import java.io.IOException;
+import java.security.Principal;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -16,14 +17,15 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import telran.java2022.accounting.dao.UserAccountRepository;
 import telran.java2022.accounting.model.UserAccount;
+import telran.java2022.security.context.SecurityContext;
+import telran.java2022.security.context.User;
 
 
 @Component
 @RequiredArgsConstructor
 @Order(30)
 public class OwnerFilter implements Filter {
-	final UserAccountRepository userAccountRepository;
-//	final PostRepository postRepository;
+	final SecurityContext context;
 
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse resp, FilterChain chain)
@@ -32,12 +34,14 @@ public class OwnerFilter implements Filter {
 		HttpServletResponse response = (HttpServletResponse) resp;
 
 		if (checkEndPoint(request.getServletPath())) {
-			UserAccount userAccount = userAccountRepository.findById(request.getUserPrincipal().getName()).get();
+			Principal principal = request.getUserPrincipal();
+			User userAccount = context.getUser(principal.getName());
 			String path = request.getServletPath();
 			String loginFromPath = path.substring(path.lastIndexOf('/') + 1);
+			
 
 			if ("PUT".equalsIgnoreCase(request.getMethod()) || "POST".equalsIgnoreCase(request.getMethod())) {
-				if (!userAccount.getLogin().equals(loginFromPath))  {
+				if (!userAccount.getUserName().equals(loginFromPath))  {
 					response.sendError(403);
 					return;
 				}
@@ -45,7 +49,7 @@ public class OwnerFilter implements Filter {
 
 			if ("DELETE".equalsIgnoreCase(request.getMethod())) {
 				if (!userAccount.getRoles().contains("Administrator".toUpperCase())) {
-					if (!userAccount.getLogin().equals(loginFromPath)) {
+					if (!userAccount.getUserName().equals(loginFromPath)) {
 						response.sendError(403);
 						return;
 					}
